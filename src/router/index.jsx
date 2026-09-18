@@ -4,6 +4,8 @@ import EntryList from '@/components/EntryList'
 import EntryDetail from '@/components/EntryDetail'
 import SourceList from '@/components/SourceList'
 import ReadLater from '@/components/ReadLater'
+import Favorites from '@/components/Favorites'
+import Archive from '@/components/Archive'
 
 function NotFound() {
   return (
@@ -30,6 +32,8 @@ export default function Router() {
           <Route path="/entries" element={<EntryList />} />
           <Route path="/entries/:id" element={<EntryDetail />} />
           <Route path="/read-later" element={<ReadLater />} />
+          <Route path="/favorites" element={<Favorites />} />
+          <Route path="/archive" element={<Archive />} />
           <Route path="/sources" element={<SourceList />} />
           <Route path="*" element={<NotFound />} />
         </Route>

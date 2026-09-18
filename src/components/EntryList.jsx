@@ -12,13 +12,14 @@ import {
 
 const PAGE_SIZE = 20
 
-// EntryList 是阅读页：条目列表，支持按渠道过滤与分页。
+// EntryList 是阅读页（收件箱）：未归档条目，支持按渠道与已读状态过滤、分页。
 export default function EntryList() {
   const [entries, setEntries] = useState([])
   const [sources, setSources] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [sourceId, setSourceId] = useState('')
+  const [readState, setReadState] = useState('all') // all | unread | read
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [highlightIds, setHighlightIds] = useState(new Set())
@@ -48,8 +49,16 @@ export default function EntryList() {
     let cancelled = false
     setLoading(true)
     setError('')
+    const params = {
+      page,
+      pageSize: PAGE_SIZE,
+      sourceId: sourceId || undefined,
+      archive: false, // 收件箱：排除已归档
+    }
+    if (readState === 'unread') params.read = false
+    else if (readState === 'read') params.read = true
     api
-      .listEntries({ page, pageSize: PAGE_SIZE, sourceId: sourceId || undefined })
+      .listEntries(params)
       .then((r) => {
         if (cancelled) return
         setEntries(r.items || [])
@@ -64,7 +73,7 @@ export default function EntryList() {
     return () => {
       cancelled = true
     }
-  }, [page, sourceId, refreshTick])
+  }, [page, sourceId, readState, refreshTick])
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -73,12 +82,45 @@ export default function EntryList() {
     all: '全部渠道',
     ...Object.fromEntries(sources.map((s) => [String(s.id), s.name])),
   }
+  const readItems = { all: '全部', unread: '未读', read: '已读' }
+
+  // 条目状态变化后：归档从收件箱移除；未读/已读筛选下，不再匹配的条目也移除。
+  function onEntryChanged(updated) {
+    let remove = Boolean(updated.archive)
+    if (!remove) {
+      if (readState === 'unread') remove = Boolean(updated.read)
+      else if (readState === 'read') remove = !updated.read
+    }
+    if (remove) {
+      setEntries((list) => list.filter((x) => x.id !== updated.id))
+      setTotal((t) => Math.max(0, t - 1))
+    }
+  }
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">阅读</h1>
         <div className="flex items-center gap-3 text-sm">
+          <Select
+            value={readState}
+            onValueChange={(v) => {
+              setReadState(v)
+              setPage(1)
+              setHighlightIds(new Set())
+            }}
+          >
+            <SelectTrigger className="w-24">
+              <SelectValue placeholder="全部">
+                {(v) => (v ? readItems[v] ?? v : '全部')}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部</SelectItem>
+              <SelectItem value="unread">未读</SelectItem>
+              <SelectItem value="read">已读</SelectItem>
+            </SelectContent>
+          </Select>
           <Select
             value={sourceId || 'all'}
             onValueChange={(v) => {
@@ -127,6 +169,7 @@ export default function EntryList() {
               key={e.id}
               entry={e}
               sources={sources}
+              onChanged={onEntryChanged}
               highlighted={highlightIds.has(e.id)}
             />
           ))}

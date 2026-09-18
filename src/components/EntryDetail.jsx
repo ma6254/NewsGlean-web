@@ -8,10 +8,13 @@ import { PicViewerDialog } from './PicViewer'
 import { PicViewerMobileDialog } from './PicViewerMobile'
 import { isMobileDevice } from '../lib/device'
 
-// EntryDetail 是单条阅读页：正文按 content_type 决定渲染方式。
+// EntryDetail 是单条阅读页：正文按 content_type 决定渲染方式，顶部提供阅读状态操作。
 export default function EntryDetail() {
   const { id } = useParams()
   const [entry, setEntry] = useState(null)
+  const [read, setRead] = useState(false)
+  const [favorite, setFavorite] = useState(false)
+  const [archive, setArchive] = useState(false)
   const [readLater, setReadLater] = useState(false)
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -29,7 +32,17 @@ export default function EntryDetail() {
       .then((e) => {
         if (cancelled) return
         setEntry(e)
+        setRead(Boolean(e.read))
+        setFavorite(Boolean(e.favorite))
+        setArchive(Boolean(e.archive))
         setReadLater(Boolean(e.read_later))
+        // 打开详情即自动标记已读；失败静默，不打断阅读
+        if (!e.read) {
+          api
+            .setRead(id, true)
+            .then((u) => setRead(Boolean(u.read)))
+            .catch(() => {})
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err.message)
@@ -62,14 +75,15 @@ export default function EntryDetail() {
 
   const isHtml = entry.content_type === 'text/html'
 
-  async function toggleReadLater() {
+  // toggle 封装一次状态切换：调用 API、更新本地状态。
+  async function toggle(apiCall, setter, fieldKey, next) {
     if (busy) return
     setBusy(true)
     try {
-      const updated = await api.setReadLater(entry.id, !readLater)
-      setReadLater(Boolean(updated.read_later))
+      const updated = await apiCall(entry.id, next)
+      setter(Boolean(updated[fieldKey]))
     } catch (e) {
-      console.error('toggle read later failed:', e)
+      console.error('toggle state failed:', e)
     } finally {
       setBusy(false)
     }
@@ -120,10 +134,37 @@ export default function EntryDetail() {
             </Badge>
           ))}
         </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button
+          variant={read ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={() => toggle(api.setRead, setRead, 'read', !read)}
+          disabled={busy}
+        >
+          {read ? '已读' : '标记已读'}
+        </Button>
+        <Button
+          variant={favorite ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={() => toggle(api.setFavorite, setFavorite, 'favorite', !favorite)}
+          disabled={busy}
+        >
+          {favorite ? '已收藏' : '收藏'}
+        </Button>
+        <Button
+          variant={archive ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={() => toggle(api.setArchive, setArchive, 'archive', !archive)}
+          disabled={busy}
+        >
+          {archive ? '已归档' : '归档'}
+        </Button>
         <Button
           variant={readLater ? 'secondary' : 'outline'}
           size="sm"
-          onClick={toggleReadLater}
+          onClick={() => toggle(api.setReadLater, setReadLater, 'read_later', !readLater)}
           disabled={busy}
         >
           {readLater ? '取消稍后再阅' : '稍后再阅'}

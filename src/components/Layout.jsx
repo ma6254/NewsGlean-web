@@ -89,6 +89,18 @@ export default function Layout() {
               稍后再阅
             </Link>
             <Link
+              to="/favorites"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              收藏
+            </Link>
+            <Link
+              to="/archive"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              归档
+            </Link>
+            <Link
               to="/sources"
               className="text-sm text-muted-foreground hover:text-foreground"
             >

@@ -47,12 +47,30 @@ export const api = {
     if (params.page && params.page > 1) qs.set('page', String(params.page))
     if (params.pageSize) qs.set('page_size', String(params.pageSize))
     if (params.sourceId) qs.set('source_id', String(params.sourceId))
+    if (params.read != null) qs.set('read', String(params.read))
+    if (params.favorite != null) qs.set('favorite', String(params.favorite))
+    if (params.archive != null) qs.set('archive', String(params.archive))
     const s = qs.toString()
     return request(`/entry/list${s ? `?${s}` : ''}`)
   },
   getEntry: (id) => request(`/entry/${id}`),
 
-  // ---- 稍后再阅 ----
+  // ---- 阅读状态 ----
+  setRead: (id, read) =>
+    request(`/entry/${id}/read`, {
+      method: 'PUT',
+      body: JSON.stringify({ read }),
+    }),
+  setFavorite: (id, favorite) =>
+    request(`/entry/${id}/favorite`, {
+      method: 'PUT',
+      body: JSON.stringify({ favorite }),
+    }),
+  setArchive: (id, archive) =>
+    request(`/entry/${id}/archive`, {
+      method: 'PUT',
+      body: JSON.stringify({ archive }),
+    }),
   listReadLater: (params = {}) => {
     const qs = new URLSearchParams()
     if (params.page && params.page > 1) qs.set('page', String(params.page))

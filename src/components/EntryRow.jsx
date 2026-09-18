@@ -5,22 +5,27 @@ import { fmtTime, stripHtml } from '../util'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 
-// EntryRow 是单条条目的列表行：标题、来源、摘要 + 「稍后再阅」切换按钮。
-// onChanged 在标记状态变化后回调（传入更新后的条目），供列表同步/移除。
+// EntryRow 是单条条目的列表行：标题、来源、摘要 + 四个阅读状态切换按钮（已读/收藏/归档/稍后再阅）。
+// onChanged 在任一状态变化后回调（传入更新后的条目），供列表同步/移除。
 // highlighted 为 true 时给新入库条目一个高亮底色（刷新后自动标记）。
 export default function EntryRow({ entry, sources, onChanged, highlighted }) {
+  const [read, setRead] = useState(Boolean(entry.read))
+  const [favorite, setFavorite] = useState(Boolean(entry.favorite))
+  const [archive, setArchive] = useState(Boolean(entry.archive))
   const [readLater, setReadLater] = useState(Boolean(entry.read_later))
   const [busy, setBusy] = useState(false)
 
-  async function toggleReadLater() {
+  // toggle 封装一次状态切换：调用 API、更新本地状态并回调父组件。
+  // fieldKey 是更新后 DTO 上对应状态的字段名（read / favorite / archive / read_later）。
+  async function toggle(apiCall, setter, fieldKey, next) {
     if (busy) return
     setBusy(true)
     try {
-      const updated = await api.setReadLater(entry.id, !readLater)
-      setReadLater(Boolean(updated.read_later))
+      const updated = await apiCall(entry.id, next)
+      setter(Boolean(updated[fieldKey]))
       if (onChanged) onChanged(updated)
     } catch (e) {
-      console.error('toggle read later failed:', e)
+      console.error('toggle state failed:', e)
     } finally {
       setBusy(false)
     }
@@ -40,7 +45,12 @@ export default function EntryRow({ entry, sources, onChanged, highlighted }) {
       <div className="min-w-0 flex-1">
         <Link
           to={`/entries/${entry.id}`}
-          className="text-base font-semibold text-foreground hover:text-primary"
+          className={
+            (read
+              ? 'text-base font-medium text-muted-foreground'
+              : 'text-base font-semibold text-foreground') +
+            ' hover:text-primary'
+          }
         >
           {entry.title || '(无标题)'}
         </Link>
@@ -56,15 +66,49 @@ export default function EntryRow({ entry, sources, onChanged, highlighted }) {
           </p>
         )}
       </div>
-      <Button
-        variant={readLater ? 'secondary' : 'outline'}
-        size="sm"
-        onClick={toggleReadLater}
-        disabled={busy}
-        title={readLater ? '取消稍后再阅' : '加入稍后再阅'}
-      >
-        {readLater ? '已收稍后' : '稍后再阅'}
-      </Button>
+
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex flex-wrap justify-end gap-1">
+          <Button
+            variant={read ? 'secondary' : 'outline'}
+            size="xs"
+            onClick={() => toggle(api.setRead, setRead, 'read', !read)}
+            disabled={busy}
+            title={read ? '标记为未读' : '标记为已读'}
+          >
+            {read ? '已读' : '未读'}
+          </Button>
+          <Button
+            variant={favorite ? 'secondary' : 'outline'}
+            size="xs"
+            onClick={() => toggle(api.setFavorite, setFavorite, 'favorite', !favorite)}
+            disabled={busy}
+            title={favorite ? '取消收藏' : '收藏'}
+          >
+            {favorite ? '已收藏' : '收藏'}
+          </Button>
+        </div>
+        <div className="flex flex-wrap justify-end gap-1">
+          <Button
+            variant={archive ? 'secondary' : 'outline'}
+            size="xs"
+            onClick={() => toggle(api.setArchive, setArchive, 'archive', !archive)}
+            disabled={busy}
+            title={archive ? '取消归档' : '归档'}
+          >
+            {archive ? '已归档' : '归档'}
+          </Button>
+          <Button
+            variant={readLater ? 'secondary' : 'outline'}
+            size="xs"
+            onClick={() => toggle(api.setReadLater, setReadLater, 'read_later', !readLater)}
+            disabled={busy}
+            title={readLater ? '取消稍后再阅' : '加入稍后再阅'}
+          >
+            {readLater ? '已收稍后' : '稍后再阅'}
+          </Button>
+        </div>
+      </div>
     </li>
   )
 }

@@ -29,6 +29,8 @@ export const api = {
   updateSource: (id, payload) =>
     request(`/source/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteSource: (id) => request(`/source/${id}`, { method: 'DELETE' }),
+  probeSource: (payload) =>
+    request('/source/probe', { method: 'POST', body: JSON.stringify(payload) }),
 
   // ---- 采集 ----
   refresh: () => request('/refresh', { method: 'POST' }),

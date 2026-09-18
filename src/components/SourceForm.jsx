@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { api } from '../api'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -45,6 +46,9 @@ export default function SourceForm({ initial, busy, onSubmit, onCancel, onDirtyC
   })
   const [dirty, setDirty] = useState(false)
   const [urlError, setUrlError] = useState('')
+  const [urlValid, setUrlValid] = useState(false)
+  const [probing, setProbing] = useState(false)
+  const [probeError, setProbeError] = useState('')
   const urlDebounceRef = useRef(null)
 
   useEffect(() => {
@@ -61,18 +65,47 @@ export default function SourceForm({ initial, busy, onSubmit, onCancel, onDirtyC
     setForm((f) => ({ ...f, [key]: value }))
   }
 
+  // applyUrlValidation 同步 urlError 与 urlValid：地址非空且校验通过才算合法。
+  function applyUrlValidation(value) {
+    const err = validateFeedUrl(value)
+    setUrlError(err)
+    setUrlValid(value.trim() !== '' && err === '')
+  }
+
   function handleUrlChange(value) {
     set('url', value)
+    setProbeError('')
     // 懒校验：停止输入 500ms 后再校验，避免每敲一个字就打扰
     clearTimeout(urlDebounceRef.current)
     urlDebounceRef.current = setTimeout(() => {
-      setUrlError(validateFeedUrl(value))
+      applyUrlValidation(value)
     }, 500)
   }
 
   function handleUrlBlur() {
     clearTimeout(urlDebounceRef.current)
-    setUrlError(validateFeedUrl(form.url))
+    applyUrlValidation(form.url)
+  }
+
+  // handleAutoFetch 从订阅地址探测 feed 标题并回填显示名。
+  async function handleAutoFetch() {
+    setProbing(true)
+    setProbeError('')
+    try {
+      const info = await api.probeSource({
+        type: form.type,
+        config: { url: form.url.trim() },
+      })
+      if (info && info.title) {
+        set('name', info.title)
+      } else {
+        setProbeError('未获取到标题')
+      }
+    } catch (e) {
+      setProbeError(e.message)
+    } finally {
+      setProbing(false)
+    }
   }
 
   function handleSubmit(e) {
@@ -95,14 +128,30 @@ export default function SourceForm({ initial, busy, onSubmit, onCancel, onDirtyC
       <div className="grid gap-4">
         <div className="grid gap-1.5">
           <Label htmlFor="source-name">显示名</Label>
-          <Input
-            id="source-name"
-            type="text"
-            required
-            value={form.name}
-            onChange={(e) => set('name', e.target.value)}
-            placeholder="例如：阮一峰的网络日志"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="source-name"
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => set('name', e.target.value)}
+              placeholder="例如：阮一峰的网络日志"
+              className="flex-1"
+            />
+            {!initial && urlValid && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAutoFetch}
+                disabled={probing}
+              >
+                {probing ? '获取中…' : '自动获取'}
+              </Button>
+            )}
+          </div>
+          {probeError && (
+            <span className="text-xs text-destructive">{probeError}</span>
+          )}
         </div>
 
         <div className="grid gap-1.5">

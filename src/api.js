@@ -29,6 +29,12 @@ export const api = {
   updateSource: (id, payload) =>
     request(`/source/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteSource: (id) => request(`/source/${id}`, { method: 'DELETE' }),
+  listSourceLogs: (id, params = {}) => {
+    const qs = new URLSearchParams()
+    if (params.limit) qs.set('limit', String(params.limit))
+    const s = qs.toString()
+    return request(`/source/${id}/logs${s ? `?${s}` : ''}`)
+  },
   probeSource: (payload) =>
     request('/source/probe', { method: 'POST', body: JSON.stringify(payload) }),
 

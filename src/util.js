@@ -26,6 +26,13 @@ export function fmtRelativeTime(s, thresholdMs = 7 * 24 * 60 * 60 * 1000) {
   return fmtTime(s)
 }
 
+// fmtMs 把毫秒时长格式化为可读（不足 1 秒用 ms，否则用 s）。
+export function fmtMs(ms) {
+  if (ms == null || ms < 0) return ''
+  if (ms < 1000) return `${ms}ms`
+  return `${(ms / 1000).toFixed(1)}s`
+}
+
 // stripHtml 去掉 HTML 标签与实体，返回纯文本（用于列表摘要展示）。
 export function stripHtml(html) {
   if (!html) return ''

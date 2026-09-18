@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
-import { fmtRelativeTime, fmtTime } from '../util'
+import { fmtMs, fmtRelativeTime, fmtTime } from '../util'
 import SourceForm from './SourceForm'
 import { useConfirm } from './ConfirmDialog'
 import { Button } from './ui/button'
@@ -219,6 +219,18 @@ export default function SourceList() {
                       ? ` · 最后更新 ${fmtRelativeTime(s.last_entry_at)}`
                       : ' · 暂无内容'}
                   </div>
+                  {s.fetch_count > 0 && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      采集 {s.fetch_count} 次 · 成功 {s.success_count} 次（
+                      {Math.round(s.success_rate * 100)}%）
+                      {s.last_elapsed_ms > 0
+                        ? ` · 最近耗时 ${fmtMs(s.last_elapsed_ms)}`
+                        : ''}
+                      {s.last_success_at
+                        ? ` · 最后成功 ${fmtRelativeTime(s.last_success_at)}`
+                        : ' · 尚无成功记录'}
+                    </div>
+                  )}
                   {s.last_error && (
                     <div className="mt-1 text-xs text-destructive">
                       最近错误：{s.last_error}

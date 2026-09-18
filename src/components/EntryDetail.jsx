@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { fmtTime, stripHtml } from '../util'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
+import { PicViewerDialog } from './PicViewer'
+import { PicViewerMobileDialog } from './PicViewerMobile'
+import { isMobileDevice } from '../lib/device'
 
 // EntryDetail 是单条阅读页：正文按 content_type 决定渲染方式。
 export default function EntryDetail() {
@@ -13,6 +16,9 @@ export default function EntryDetail() {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const contentRef = useRef(null)
+  const [viewer, setViewer] = useState(null) // { index, images: [{ src, alt }] }
+  const isMobile = useMemo(() => isMobileDevice(), [])
 
   useEffect(() => {
     let cancelled = false
@@ -69,6 +75,29 @@ export default function EntryDetail() {
     }
   }
 
+  // 点击正文中的图片时打开图片查看器（收集正文全部图片，支持前后切换）。
+  function handleContentClick(e) {
+    const container = contentRef.current
+    if (!container) return
+    const img = e.target instanceof Element ? e.target.closest('img') : null
+    if (!img || !container.contains(img)) return
+
+    const images = Array.from(container.querySelectorAll('img'))
+      .map((el) => ({ src: el.currentSrc || el.src || '', alt: el.alt || '' }))
+      .filter((item) => item.src)
+
+    if (images.length === 0) return
+
+    const src = img.currentSrc || img.src || ''
+    let index = images.findIndex((item) => item.src === src)
+    if (index < 0) index = 0
+
+    e.preventDefault()
+    setViewer({ index, images })
+  }
+
+  const currentImage = viewer ? viewer.images[viewer.index] : null
+
   return (
     <article>
       <Link
@@ -124,7 +153,9 @@ export default function EntryDetail() {
         {entry.content ? (
           isHtml ? (
             <div
+              ref={contentRef}
               className="entry-content"
+              onClick={handleContentClick}
               dangerouslySetInnerHTML={{ __html: entry.content }}
             />
           ) : (
@@ -136,6 +167,38 @@ export default function EntryDetail() {
           <p className="text-muted-foreground">（无正文）</p>
         )}
       </div>
+
+      {viewer && currentImage ? (
+        isMobile ? (
+          <PicViewerMobileDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setViewer(null)
+            }}
+            src={currentImage.src}
+            alt={currentImage.alt}
+            filePath={currentImage.src}
+            hasPrev={viewer.index > 0}
+            hasNext={viewer.index < viewer.images.length - 1}
+            onPrev={() => setViewer((v) => (v ? { ...v, index: v.index - 1 } : v))}
+            onNext={() => setViewer((v) => (v ? { ...v, index: v.index + 1 } : v))}
+          />
+        ) : (
+          <PicViewerDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setViewer(null)
+            }}
+            src={currentImage.src}
+            alt={currentImage.alt}
+            filePath={currentImage.src}
+            hasPrev={viewer.index > 0}
+            hasNext={viewer.index < viewer.images.length - 1}
+            onPrev={() => setViewer((v) => (v ? { ...v, index: v.index - 1 } : v))}
+            onNext={() => setViewer((v) => (v ? { ...v, index: v.index + 1 } : v))}
+          />
+        )
+      ) : null}
     </article>
   )
 }

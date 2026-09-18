@@ -43,4 +43,18 @@ export const api = {
     return request(`/entry/list${s ? `?${s}` : ''}`)
   },
   getEntry: (id) => request(`/entry/${id}`),
+
+  // ---- 稍后再阅 ----
+  listReadLater: (params = {}) => {
+    const qs = new URLSearchParams()
+    if (params.page && params.page > 1) qs.set('page', String(params.page))
+    if (params.pageSize) qs.set('page_size', String(params.pageSize))
+    const s = qs.toString()
+    return request(`/entry/read-later${s ? `?${s}` : ''}`)
+  },
+  setReadLater: (id, readLater) =>
+    request(`/entry/${id}/read-later`, {
+      method: 'PUT',
+      body: JSON.stringify({ read_later: readLater }),
+    }),
 }

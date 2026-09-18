@@ -3,12 +3,16 @@ import Layout from '@/components/Layout'
 import EntryList from '@/components/EntryList'
 import EntryDetail from '@/components/EntryDetail'
 import SourceList from '@/components/SourceList'
+import ReadLater from '@/components/ReadLater'
 
 function NotFound() {
   return (
-    <div className="py-16 text-center text-slate-500">
+    <div className="py-16 text-center text-muted-foreground">
       <p className="text-lg">页面不存在</p>
-      <Link to="/" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
+      <Link
+        to="/"
+        className="mt-2 inline-block text-sm text-primary hover:underline"
+      >
         回到阅读
       </Link>
     </div>
@@ -25,6 +29,7 @@ export default function Router() {
           <Route path="/" element={<EntryList />} />
           <Route path="/entries" element={<EntryList />} />
           <Route path="/entries/:id" element={<EntryDetail />} />
+          <Route path="/read-later" element={<ReadLater />} />
           <Route path="/sources" element={<SourceList />} />
           <Route path="*" element={<NotFound />} />
         </Route>

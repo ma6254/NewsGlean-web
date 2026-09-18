@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { Link, Outlet } from 'react-router-dom'
 import { api } from '../api'
 
-// Layout 是全局框架：顶栏导航 + 全局刷新 + 提示条。
-export default function Layout({ children }) {
+// Layout 是全局框架：顶栏导航 + 全局刷新 + 提示条；子路由经 <Outlet /> 渲染。
+export default function Layout() {
   const [refreshing, setRefreshing] = useState(false)
   const [notice, setNotice] = useState(null)
 
@@ -25,22 +26,22 @@ export default function Layout({ children }) {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-          <a href="#/entries" className="text-lg font-bold tracking-tight">
+          <Link to="/" className="text-lg font-bold tracking-tight">
             📰 NewsGlean
-          </a>
+          </Link>
           <nav className="flex items-center gap-3">
-            <a
-              href="#/entries"
+            <Link
+              to="/entries"
               className="text-sm text-slate-600 hover:text-slate-900"
             >
               阅读
-            </a>
-            <a
-              href="#/sources"
+            </Link>
+            <Link
+              to="/sources"
               className="text-sm text-slate-600 hover:text-slate-900"
             >
               渠道
-            </a>
+            </Link>
             <button
               onClick={onRefresh}
               disabled={refreshing}
@@ -67,7 +68,9 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      <main className="mx-auto max-w-4xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-4xl px-4 py-6">
+        <Outlet />
+      </main>
     </div>
   )
 }

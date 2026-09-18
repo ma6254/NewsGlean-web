@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { fmtTime, stripHtml } from '../util'
 
 // EntryDetail 是单条阅读页：正文按 content_type 决定渲染方式。
-export default function EntryDetail({ id }) {
+export default function EntryDetail() {
+  const { id } = useParams()
   const [entry, setEntry] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -35,9 +37,9 @@ export default function EntryDetail({ id }) {
     return (
       <div className="py-16 text-center text-red-600">
         <p>{error}</p>
-        <a href="#/entries" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
+        <Link to="/entries" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
           ← 返回列表
-        </a>
+        </Link>
       </div>
     )
   }
@@ -47,9 +49,9 @@ export default function EntryDetail({ id }) {
 
   return (
     <article>
-      <a href="#/entries" className="text-sm text-slate-500 hover:text-slate-900">
+      <Link to="/entries" className="text-sm text-slate-500 hover:text-slate-900">
         ← 返回列表
-      </a>
+      </Link>
       <h1 className="mt-2 text-2xl font-bold leading-snug">
         {entry.title || '(无标题)'}
       </h1>

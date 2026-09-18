@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import { fmtTime } from '../util'
+import { fmtRelativeTime, fmtTime } from '../util'
 import SourceForm from './SourceForm'
 
 // SourceList 是渠道管理页：列表 + 新增/编辑表单 + 启停/删除。
@@ -168,6 +168,9 @@ export default function SourceList() {
               )}
               <div className="mt-1 text-xs text-slate-400">
                 每 {s.interval}s 刷新 · 创建于 {fmtTime(s.created_at)}
+                {s.last_entry_at
+                  ? ` · 最后更新 ${fmtRelativeTime(s.last_entry_at)}`
+                  : ' · 暂无内容'}
               </div>
               {s.last_error && (
                 <div className="mt-1 text-xs text-red-600">

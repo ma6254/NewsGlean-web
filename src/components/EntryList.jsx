@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { fmtTime, stripHtml } from '../util'
 
@@ -91,12 +92,12 @@ export default function EntryList() {
               key={e.id}
               className="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-slate-300"
             >
-              <a
-                href={`#/entries/${e.id}`}
+              <Link
+                to={`/entries/${e.id}`}
                 className="text-base font-semibold text-slate-900 hover:text-blue-600"
               >
                 {e.title || '(无标题)'}
-              </a>
+              </Link>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                 {sourceName(sources, e.source_id) && (
                   <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">

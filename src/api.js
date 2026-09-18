@@ -66,3 +66,18 @@ export const api = {
       body: JSON.stringify({ read_later: readLater }),
     }),
 }
+
+// subscribeRefresh 订阅采集进度 SSE（GET /api/refresh/stream）。
+// onEvent 收到解析后的进度事件对象；EventSource 断线会自动重连。
+// 返回 EventSource 实例，调用方在组件卸载时 close() 释放。
+export function subscribeRefresh(onEvent) {
+  const es = new EventSource(BASE + '/refresh/stream')
+  es.onmessage = (msg) => {
+    try {
+      onEvent(JSON.parse(msg.data))
+    } catch {
+      // 忽略无法解析的事件（如非 JSON 内容）
+    }
+  }
+  return es
+}

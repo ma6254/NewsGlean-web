@@ -83,6 +83,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ read_later: readLater }),
     }),
+
+  // ---- 系统信息 ----
+  getSysInfo: () => request('/sys/info'),
+  getSysState: () => request('/sys/state'),
+  getOsInfo: () => request('/os/info'),
+  getOsState: () => request('/os/state'),
 }
 
 // subscribeRefresh 订阅采集进度 SSE（GET /api/refresh/stream）。

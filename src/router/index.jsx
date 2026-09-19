@@ -6,6 +6,7 @@ import SourceList from '@/components/SourceList'
 import ReadLater from '@/components/ReadLater'
 import Favorites from '@/components/Favorites'
 import Archive from '@/components/Archive'
+import SystemInfo from '@/components/SystemInfo'
 
 function NotFound() {
   return (
@@ -35,6 +36,7 @@ export default function Router() {
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/archive" element={<Archive />} />
           <Route path="/sources" element={<SourceList />} />
+          <Route path="/system-info" element={<SystemInfo />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

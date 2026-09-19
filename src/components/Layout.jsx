@@ -106,6 +106,12 @@ export default function Layout() {
             >
               渠道
             </Link>
+            <Link
+              to="/system-info"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              系统信息
+            </Link>
             <Button onClick={onRefresh} disabled={refreshing} size="sm">
               {refreshing ? '刷新中…' : '立即刷新'}
             </Button>

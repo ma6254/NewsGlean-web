@@ -26,7 +26,7 @@ export interface Source {
   id: number
   name: string
   type: string
-  config?: { url?: string }
+  config?: { url?: string; selector?: string; full_text?: boolean }
   interval: number
   enabled: boolean
   fail_count: number
@@ -44,7 +44,7 @@ export interface Source {
 export interface SourcePayload {
   name: string
   type: string
-  config: { url: string }
+  config: { url: string; selector?: string; full_text?: boolean }
   interval: number
   enabled: boolean
 }

@@ -14,27 +14,36 @@ import {
 import type { Source, SourcePayload } from '../types'
 import { DEFAULT_SOURCE_INTERVAL } from '../constants'
 
-// 当前阶段只有 feed 渠道；后续渠道类型接入后在此扩展字段映射。
-const TYPES = [{ value: 'feed', label: 'RSS / Atom / JSON Feed' }]
+// 渠道类型与显示名映射。新增渠道类型时在此扩展。
+const TYPES = [
+  { value: 'feed', label: 'RSS / Atom / JSON Feed' },
+  { value: 'webpage', label: '网页列表页（CSS 选择器）' },
+]
 const TYPE_ITEMS: Record<string, string> = Object.fromEntries(
   TYPES.map((t) => [t.value, t.label] as [string, string]),
 )
 
-// validateFeedUrl 校验订阅地址合法性：非空、可解析、且协议为 http/https。
+// validateURL 校验地址合法性：非空、可解析、且协议为 http/https。
 // 返回错误信息；合法时返回空字符串。
-function validateFeedUrl(value: string): string {
+function validateURL(value: string): string {
   const v = (value || '').trim()
-  if (!v) return '请输入订阅地址'
+  if (!v) return '请输入地址'
   let u: URL
   try {
     u = new URL(v)
   } catch {
-    return '订阅地址格式不正确，请输入完整 URL'
+    return '地址格式不正确，请输入完整 URL'
   }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-    return '订阅地址必须以 http:// 或 https:// 开头'
+    return '地址必须以 http:// 或 https:// 开头'
   }
-  if (!u.hostname) return '订阅地址缺少主机名'
+  if (!u.hostname) return '地址缺少主机名'
+  return ''
+}
+
+// validateSelector 校验 CSS 选择器非空；语法合法性由后端 Validate 兜底。
+function validateSelector(value: string): string {
+  if (!(value || '').trim()) return '请输入条目选择器'
   return ''
 }
 
@@ -50,6 +59,8 @@ interface FormState {
   name: string
   type: string
   url: string
+  selector: string
+  fullText: boolean
   interval: string | number
   enabled: boolean
 }
@@ -67,12 +78,15 @@ export default function SourceForm({
     name: initial?.name || '',
     type: initial?.type || 'feed',
     url: initial?.config?.url || '',
+    selector: initial?.config?.selector || '',
+    fullText: initial?.config?.full_text || false,
     interval: initial?.interval || DEFAULT_SOURCE_INTERVAL,
     enabled: initial ? initial.enabled : true,
   })
   const [dirty, setDirty] = useState(false)
   const [urlError, setUrlError] = useState('')
   const [urlValid, setUrlValid] = useState(false)
+  const [selectorError, setSelectorError] = useState('')
   const [probing, setProbing] = useState(false)
   const [probeError, setProbeError] = useState('')
   const urlDebounceRef = useRef<number | null>(null)
@@ -93,7 +107,7 @@ export default function SourceForm({
 
   // applyUrlValidation 同步 urlError 与 urlValid：地址非空且校验通过才算合法。
   function applyUrlValidation(value: string) {
-    const err = validateFeedUrl(value)
+    const err = validateURL(value)
     setUrlError(err)
     setUrlValid(value.trim() !== '' && err === '')
   }
@@ -113,14 +127,26 @@ export default function SourceForm({
     applyUrlValidation(form.url)
   }
 
-  // handleAutoFetch 从订阅地址探测 feed 标题并回填显示名。
+  // buildConfig 按渠道类型组装配置：feed 只有 url；webpage 额外带 selector 与 full_text。
+  function buildConfig() {
+    if (form.type === 'webpage') {
+      return {
+        url: form.url.trim(),
+        selector: form.selector.trim(),
+        full_text: form.fullText,
+      }
+    }
+    return { url: form.url.trim() }
+  }
+
+  // handleAutoFetch 探测渠道标题并回填显示名（feed 取 feed 标题，webpage 取页面 <title>）。
   async function handleAutoFetch() {
     setProbing(true)
     setProbeError('')
     try {
       const info = await api.probeSource({
         type: form.type,
-        config: { url: form.url.trim() },
+        config: buildConfig(),
       })
       if (info && info.title) {
         set({ name: info.title })
@@ -137,13 +163,18 @@ export default function SourceForm({
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     window.clearTimeout(urlDebounceRef.current as number)
-    const err = validateFeedUrl(form.url)
+    const err = validateURL(form.url)
     setUrlError(err)
     if (err) return
+    if (form.type === 'webpage') {
+      const selErr = validateSelector(form.selector)
+      setSelectorError(selErr)
+      if (selErr) return
+    }
     onSubmit({
       name: form.name.trim(),
       type: form.type,
-      config: { url: form.url.trim() },
+      config: buildConfig(),
       interval: Number(form.interval) || DEFAULT_SOURCE_INTERVAL,
       enabled: form.enabled,
     })
@@ -202,21 +233,54 @@ export default function SourceForm({
           </Select>
         </div>
 
-        {form.type === 'feed' && (
-          <div className="grid gap-1.5">
-            <Label htmlFor="source-url">订阅地址（feed URL）</Label>
-            <Input
-              id="source-url"
-              type="text"
-              inputMode="url"
-              value={form.url}
-              onChange={(e) => handleUrlChange(e.target.value)}
-              onBlur={handleUrlBlur}
-              placeholder="https://example.com/feed.xml"
-              aria-invalid={Boolean(urlError)}
-            />
-            {urlError && <span className="text-xs text-destructive">{urlError}</span>}
-          </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="source-url">
+            {form.type === 'webpage' ? '列表页地址（URL）' : '订阅地址（feed URL）'}
+          </Label>
+          <Input
+            id="source-url"
+            type="text"
+            inputMode="url"
+            value={form.url}
+            onChange={(e) => handleUrlChange(e.target.value)}
+            onBlur={handleUrlBlur}
+            placeholder={
+              form.type === 'webpage'
+                ? 'https://example.com/news'
+                : 'https://example.com/feed.xml'
+            }
+            aria-invalid={Boolean(urlError)}
+          />
+          {urlError && <span className="text-xs text-destructive">{urlError}</span>}
+        </div>
+
+        {form.type === 'webpage' && (
+          <>
+            <div className="grid gap-1.5">
+              <Label htmlFor="source-selector">条目选择器（CSS）</Label>
+              <Input
+                id="source-selector"
+                type="text"
+                value={form.selector}
+                onChange={(e) => {
+                  set({ selector: e.target.value })
+                  setSelectorError('')
+                }}
+                placeholder="div.article-list > a"
+                aria-invalid={Boolean(selectorError)}
+              />
+              {selectorError && (
+                <span className="text-xs text-destructive">{selectorError}</span>
+              )}
+            </div>
+            <Label className="flex items-center gap-2">
+              <Checkbox
+                checked={form.fullText}
+                onCheckedChange={(checked) => set({ fullText: checked })}
+              />
+              回源抓取正文（阶段 12 生效）
+            </Label>
+          </>
         )}
 
         <div className="grid gap-1.5">

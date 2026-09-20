@@ -6,6 +6,7 @@ import SourceList from '@/pages/SourceList'
 import ReadLater from '@/pages/ReadLater'
 import Favorites from '@/pages/Favorites'
 import Archive from '@/pages/Archive'
+import Search from '@/pages/Search'
 import SystemInfo from '@/pages/SystemInfo'
 
 function NotFound() {
@@ -35,6 +36,7 @@ export default function Router() {
           <Route path="/read-later" element={<ReadLater />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/archive" element={<Archive />} />
+          <Route path="/search" element={<Search />} />
           <Route path="/sources" element={<SourceList />} />
           <Route path="/system-info" element={<SystemInfo />} />
           <Route path="*" element={<NotFound />} />

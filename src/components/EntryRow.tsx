@@ -4,6 +4,7 @@ import { api } from '../services'
 import { fmtTime, stripHtml } from '../utils'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
+import Highlight from './Highlight'
 import type { Entry, Source } from '../types'
 
 interface EntryRowProps {
@@ -11,12 +12,14 @@ interface EntryRowProps {
   sources: Source[]
   onChanged?: (updated: Entry) => void
   highlighted?: boolean
+  keyword?: string
 }
 
 // EntryRow 是单条条目的列表行：标题、来源、摘要 + 四个阅读状态切换按钮（已读/收藏/归档/稍后再阅）。
 // onChanged 在任一状态变化后回调（传入更新后的条目），供列表同步/移除。
 // highlighted 为 true 时给新入库条目一个高亮底色（刷新后自动标记）。
-export default function EntryRow({ entry, sources, onChanged, highlighted }: EntryRowProps) {
+// keyword 非空时，标题/作者/摘要中命中关键词的片段用 <mark> 高亮（搜索结果用）。
+export default function EntryRow({ entry, sources, onChanged, highlighted, keyword }: EntryRowProps) {
   const [read, setRead] = useState(Boolean(entry.read))
   const [favorite, setFavorite] = useState(Boolean(entry.favorite))
   const [archive, setArchive] = useState(Boolean(entry.archive))
@@ -65,17 +68,21 @@ export default function EntryRow({ entry, sources, onChanged, highlighted }: Ent
             ' hover:text-primary'
           }
         >
-          {entry.title || '(无标题)'}
+          <Highlight text={entry.title || '(无标题)'} keyword={keyword} />
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {highlighted && <Badge variant="secondary">新增</Badge>}
           {name && <Badge variant="outline">{name}</Badge>}
-          {entry.author && <span>{entry.author}</span>}
+          {entry.author && (
+            <span>
+              <Highlight text={entry.author} keyword={keyword} />
+            </span>
+          )}
           <time>{fmtTime(entry.published_at)}</time>
         </div>
         {entry.summary && (
           <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-            {stripHtml(entry.summary)}
+            <Highlight text={stripHtml(entry.summary)} keyword={keyword} />
           </p>
         )}
       </div>

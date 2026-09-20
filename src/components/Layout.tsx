@@ -94,6 +94,12 @@ export default function Layout() {
               阅读
             </Link>
             <Link
+              to="/search"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              搜索
+            </Link>
+            <Link
               to="/read-later"
               className="text-sm text-muted-foreground hover:text-foreground"
             >

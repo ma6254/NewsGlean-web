@@ -42,3 +42,26 @@ export function stripHtml(html: string | null | undefined): string {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   return (doc.body.textContent || '').replace(/\s+/g, ' ').trim()
 }
+
+// escapeRegExp 转义正则特殊字符，让用户关键词按字面量匹配（搜索高亮用）。
+export function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// splitHighlight 按关键词（不区分大小写）把文本切成「命中/未命中」段落。
+// 搜索高亮用：渲染层据此把 hit=true 的段落包 <mark>；关键词为空时原样返回。
+export function splitHighlight(
+  text: string,
+  keyword: string,
+): Array<{ text: string; hit: boolean }> {
+  const kw = keyword.trim()
+  if (!text || !kw) return [{ text, hit: false }]
+  const re = new RegExp(`(${escapeRegExp(kw)})`, 'gi')
+  return text
+    .split(re)
+    .filter((p) => p !== '')
+    .map((p) => ({
+      text: p,
+      hit: p.toLowerCase() === kw.toLowerCase(),
+    }))
+}

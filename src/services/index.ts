@@ -30,6 +30,16 @@ export interface EntryListParams {
   archive?: boolean
 }
 
+export interface SearchParams {
+  q: string
+  page?: number
+  pageSize?: number
+  sourceId?: string
+  read?: boolean
+  favorite?: boolean
+  archive?: boolean
+}
+
 export const api = {
   // ---- 渠道 ----
   listSources: (): Promise<any> => request('/source'),
@@ -64,6 +74,19 @@ export const api = {
     return request(`/entry/list${s ? `?${s}` : ''}`)
   },
   getEntry: (id: number): Promise<any> => request(`/entry/${id}`),
+
+  // ---- 搜索 ----
+  search: (params: SearchParams): Promise<any> => {
+    const qs = new URLSearchParams()
+    qs.set('q', params.q)
+    if (params.page && params.page > 1) qs.set('page', String(params.page))
+    if (params.pageSize) qs.set('page_size', String(params.pageSize))
+    if (params.sourceId) qs.set('source_id', String(params.sourceId))
+    if (params.read != null) qs.set('read', String(params.read))
+    if (params.favorite != null) qs.set('favorite', String(params.favorite))
+    if (params.archive != null) qs.set('archive', String(params.archive))
+    return request(`/search?${qs.toString()}`)
+  },
 
   // ---- 阅读状态 ----
   setRead: (id: number, read: boolean): Promise<any> =>

@@ -14,6 +14,13 @@ interface Notice {
   text: string
 }
 
+// 导出格式选项（对应 GET /api/export/download?format=...）
+const EXPORT_FORMATS = [
+  { value: 'markdown', label: 'Markdown（.zip）' },
+  { value: 'json', label: 'JSON' },
+  { value: 'epub', label: 'EPUB' },
+]
+
 // Layout 是全局框架：顶栏导航 + 全局刷新 + 实时进度条；子路由经 <Outlet /> 渲染。
 export default function Layout() {
   const [refreshing, setRefreshing] = useState(false)
@@ -21,6 +28,10 @@ export default function Layout() {
   const [inflight, setInflight] = useState<InflightSource[]>([])
   // 同步记录「手动刷新中」，供 SSE 回调判断（避免闭包读到过期的 refreshing）
   const refreshingRef = useRef(false)
+  // 导出下拉：展开状态、导出中标记、下拉容器引用（点击外部收起）
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
 
   // 订阅采集进度 SSE：实时显示正在刷新的渠道；后台（定时）刷新有新内容时也通知阅读页高亮。
   useEffect(() => {
@@ -79,6 +90,53 @@ export default function Layout() {
     }
   }
 
+  // 点击导出下拉外部时收起
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [])
+
+  // onExport 触发后端导出并下载返回的文件流（方案 B：浏览器直接拿到文件）。
+  async function onExport(format: string) {
+    setExportOpen(false)
+    setExporting(true)
+    try {
+      const res = await fetch(`/api/export/download?format=${format}`)
+      if (!res.ok) {
+        let message = `导出失败（HTTP ${res.status}）`
+        try {
+          const data = await res.json()
+          if (data && data.error) message = data.error
+        } catch {
+          // 非 JSON 错误响应，保留默认信息
+        }
+        throw new Error(message)
+      }
+      const blob = await res.blob()
+      const cd = res.headers.get('Content-Disposition') || ''
+      const m = cd.match(/filename="?([^";]+)"?/)
+      const filename = m ? m[1] : `news-glean-${format}`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      setNotice({ kind: 'ok', text: `已导出 ${filename}` })
+    } catch (e) {
+      setNotice({ kind: 'err', text: (e as Error).message })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
@@ -129,6 +187,30 @@ export default function Layout() {
             >
               系统信息
             </Link>
+            <div className="relative" ref={exportRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExportOpen((v) => !v)}
+                disabled={exporting}
+                aria-expanded={exportOpen}
+              >
+                {exporting ? '导出中…' : '导出'}
+              </Button>
+              {exportOpen && (
+                <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border bg-popover p-1 shadow-md">
+                  {EXPORT_FORMATS.map((f) => (
+                    <button
+                      key={f.value}
+                      onClick={() => onExport(f.value)}
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <Button onClick={onRefresh} disabled={refreshing} size="sm">
               {refreshing ? '刷新中…' : '立即刷新'}
             </Button>

@@ -46,6 +46,7 @@
 | 类别     | 选型                                                              |
 | -------- | ----------------------------------------------------------------- |
 | 框架     | React 19 + React Router 7（history 模式，路径不带 `#`）            |
+| 语言     | TypeScript（strict 模式，`tsc --noEmit` 类型检查）                  |
 | 构建     | Vite 8 + `@vitejs/plugin-react`                                   |
 | 样式     | Tailwind CSS 4（`@tailwindcss/vite`）+ CSS 变量                     |
 | 组件     | shadcn 风格组件（`base-nova` 样式，`lucide-react` 图标，`class-variance-authority`） |
@@ -57,26 +58,29 @@
 
 ```
 src/
-  main.jsx            应用入口
-  App.jsx             根组件（ConfirmProvider + Router）
-  router/index.jsx    路由表
-  api.js              /api 的轻量封装 + SSE 采集进度订阅
+  main.tsx            应用入口
+  App.tsx             根组件（ConfirmProvider + Router）
+  router/index.tsx    路由表
+  services/           /api 的轻量封装 + SSE 采集进度订阅（index.ts）
+  types.ts            与后端 DTO 对齐的前端类型定义
+  constants/          全局共享常量（index.ts）
+  utils/              通用工具（时间格式化、HTML 转纯文本等）
   index.css           Tailwind 入口样式
-  util.js             通用工具（时间格式化、HTML 转纯文本等）
-  lib/device.js       设备判断（移动端 / 桌面端）
+  lib/device.ts       设备判断（移动端 / 桌面端）
+  pages/
+    EntryList/        阅读流（index.tsx + index.css）
+    EntryDetail/      条目详情
+    ReadLater/        稍后再阅
+    Favorites/        收藏
+    Archive/          归档
+    SourceList/       渠道管理
+    SystemInfo/       系统信息
   components/
-    Layout.jsx        全局框架（顶栏导航 + 刷新 + 进度条）
-    EntryList.jsx     阅读流
-    EntryRow.jsx      单条条目
-    EntryDetail.jsx   条目详情
-    ReadLater.jsx     稍后再阅
-    Favorites.jsx     收藏
-    Archive.jsx       归档
-    StateList.jsx     通用状态列表
-    SourceList.jsx    渠道管理
-    SourceForm.jsx    渠道表单（新增 / 编辑）
-    SystemInfo.jsx    系统信息
-    ConfirmDialog.jsx 确认对话框（ConfirmProvider）
+    Layout.tsx        全局框架（顶栏导航 + 刷新 + 进度条）
+    EntryRow.tsx      单条条目
+    StateList.tsx     通用状态列表
+    SourceForm.tsx    渠道表单（新增 / 编辑）
+    ConfirmDialog.tsx 确认对话框（ConfirmProvider）
     PicViewer/        桌面端图片查看器
     PicViewerMobile/  移动端图片查看器
     ui/               shadcn 基础组件（button / card / dialog / input 等）
@@ -93,7 +97,9 @@ npm install
 npm run dev
 ```
 
-开发服务器默认监听 `http://localhost:38080`，并把 `/api`、`/swagger` 代理到本地后端 `http://127.0.0.1:28080`（见 `vite.config.js`），避免跨域。因此开发时请先启动 NewsGlean 服务端。
+开发服务器默认监听 `http://localhost:38080`，并把 `/api`、`/swagger` 代理到本地后端 `http://127.0.0.1:28080`（见 `vite.config.ts`），避免跨域。因此开发时请先启动 NewsGlean 服务端。
+
+代码规范：`npm run lint`（ESLint）· 类型检查：`npm run typecheck`（`tsc --noEmit`）。
 
 ---
 

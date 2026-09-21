@@ -1,6 +1,8 @@
 // 对服务端 /api 的轻量封装，统一错误处理。
 // 开发时由 Vite 代理到后端（见 vite.config.ts），生产时由后端同源托管。
 
+import type { EnvCheck } from '../types'
+
 const BASE = '/api'
 
 async function request(path: string, options: RequestInit = {}): Promise<any> {
@@ -57,6 +59,32 @@ export const api = {
   },
   probeSource: (payload: any): Promise<any> =>
     request('/source/probe', { method: 'POST', body: JSON.stringify(payload) }),
+  checkEnv: (type: string, biliPath?: string): Promise<EnvCheck> => {
+    const qs = new URLSearchParams({ type })
+    if (biliPath) qs.set('bili_path', biliPath)
+    return request(`/source/env-check?${qs.toString()}`)
+  },
+  bilibiliLogin: (payload: {
+    sessdata: string
+    bili_jct: string
+    buvid3?: string
+  }): Promise<any> =>
+    request('/bilibili/login', { method: 'POST', body: JSON.stringify(payload) }),
+  listBiliFavorites: (
+    biliPath?: string,
+  ): Promise<{ items: { id: number; title: string; media_count: number }[] }> => {
+    const qs = new URLSearchParams()
+    if (biliPath) qs.set('bili_path', biliPath)
+    const s = qs.toString()
+    return request(`/bilibili/favorites${s ? `?${s}` : ''}`)
+  },
+  backfillBilibili: (
+    sourceId: number,
+  ): Promise<{ ok: boolean; backfilled: number; total: number }> =>
+    request('/bilibili/backfill', {
+      method: 'POST',
+      body: JSON.stringify({ source_id: sourceId }),
+    }),
 
   // ---- 采集 ----
   refresh: (): Promise<any> => request('/refresh', { method: 'POST' }),

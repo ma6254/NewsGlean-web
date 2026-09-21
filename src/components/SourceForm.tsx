@@ -13,14 +13,25 @@ import {
 } from './ui/select'
 import type { Source, SourcePayload } from '../types'
 import { DEFAULT_SOURCE_INTERVAL } from '../constants'
+import BiliEnvPanel from './BiliEnvPanel'
 
 // 渠道类型与显示名映射。新增渠道类型时在此扩展。
 const TYPES = [
   { value: 'feed', label: 'RSS / Atom / JSON Feed' },
   { value: 'webpage', label: '网页列表页（CSS 选择器）' },
+  { value: 'bilibili', label: 'B 站个人数据（历史 / 收藏夹）' },
 ]
 const TYPE_ITEMS: Record<string, string> = Object.fromEntries(
   TYPES.map((t) => [t.value, t.label] as [string, string]),
+)
+
+// bilibili 渠道的采集模式。
+const BILI_MODES = [
+  { value: 'history', label: '观看历史' },
+  { value: 'favorites', label: '收藏夹' },
+]
+const BILI_MODE_ITEMS: Record<string, string> = Object.fromEntries(
+  BILI_MODES.map((m) => [m.value, m.label] as [string, string]),
 )
 
 // validateURL 校验地址合法性：非空、可解析、且协议为 http/https。
@@ -61,6 +72,10 @@ interface FormState {
   url: string
   selector: string
   fullText: boolean
+  mode: string
+  favId: string
+  biliPath: string
+  fetchDetail: boolean
   interval: string | number
   enabled: boolean
 }
@@ -80,6 +95,10 @@ export default function SourceForm({
     url: initial?.config?.url || '',
     selector: initial?.config?.selector || '',
     fullText: initial?.config?.full_text || false,
+    mode: initial?.config?.mode || 'history',
+    favId: initial?.config?.fav_id || '',
+    biliPath: initial?.config?.bili_path || '',
+    fetchDetail: initial ? (initial.config?.fetch_detail ?? false) : true,
     interval: initial?.interval || DEFAULT_SOURCE_INTERVAL,
     enabled: initial ? initial.enabled : true,
   })
@@ -87,6 +106,12 @@ export default function SourceForm({
   const [urlError, setUrlError] = useState('')
   const [urlValid, setUrlValid] = useState(false)
   const [selectorError, setSelectorError] = useState('')
+  const [favIdError, setFavIdError] = useState('')
+  const [favFolders, setFavFolders] = useState<
+    { id: number; title: string; media_count: number }[]
+  >([])
+  const [loadingFolders, setLoadingFolders] = useState(false)
+  const [foldersError, setFoldersError] = useState('')
   const [probing, setProbing] = useState(false)
   const [probeError, setProbeError] = useState('')
   const urlDebounceRef = useRef<number | null>(null)
@@ -127,13 +152,21 @@ export default function SourceForm({
     applyUrlValidation(form.url)
   }
 
-  // buildConfig 按渠道类型组装配置：feed 只有 url；webpage 额外带 selector 与 full_text。
+  // buildConfig 按渠道类型组装配置：feed 只有 url；webpage 带 selector/full_text；bilibili 带 mode/fav_id。
   function buildConfig() {
     if (form.type === 'webpage') {
       return {
         url: form.url.trim(),
         selector: form.selector.trim(),
         full_text: form.fullText,
+      }
+    }
+    if (form.type === 'bilibili') {
+      return {
+        mode: form.mode,
+        fav_id: form.favId.trim(),
+        bili_path: form.biliPath.trim(),
+        fetch_detail: form.fetchDetail,
       }
     }
     return { url: form.url.trim() }
@@ -160,16 +193,38 @@ export default function SourceForm({
     }
   }
 
+  // loadFavFolders 拉取收藏夹列表填充下拉。
+  async function loadFavFolders() {
+    setLoadingFolders(true)
+    setFoldersError('')
+    try {
+      const res = await api.listBiliFavorites(form.biliPath)
+      const items = res.items || []
+      setFavFolders(items)
+      if (!items.length) setFoldersError('未获取到收藏夹（请确认已登录）')
+    } catch (e) {
+      setFoldersError((e as Error).message)
+    } finally {
+      setLoadingFolders(false)
+    }
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     window.clearTimeout(urlDebounceRef.current as number)
-    const err = validateURL(form.url)
-    setUrlError(err)
-    if (err) return
+    if (form.type !== 'bilibili') {
+      const err = validateURL(form.url)
+      setUrlError(err)
+      if (err) return
+    }
     if (form.type === 'webpage') {
       const selErr = validateSelector(form.selector)
       setSelectorError(selErr)
       if (selErr) return
+    }
+    if (form.type === 'bilibili' && form.mode === 'favorites' && !form.favId.trim()) {
+      setFavIdError('请输入收藏夹 ID')
+      return
     }
     onSubmit({
       name: form.name.trim(),
@@ -178,6 +233,12 @@ export default function SourceForm({
       interval: Number(form.interval) || DEFAULT_SOURCE_INTERVAL,
       enabled: form.enabled,
     })
+  }
+
+  const folderLabel = (v?: string) => {
+    if (!v) return '选择收藏夹'
+    const f = favFolders.find((x) => String(x.id) === v)
+    return f ? `${f.title}（${f.media_count} 个视频）` : `#${v}`
   }
 
   return (
@@ -195,7 +256,7 @@ export default function SourceForm({
               placeholder="例如：阮一峰的网络日志"
               className="flex-1"
             />
-            {!initial && urlValid && (
+            {!initial && (form.type === 'bilibili' || urlValid) && (
               <Button
                 type="button"
                 variant="outline"
@@ -233,26 +294,28 @@ export default function SourceForm({
           </Select>
         </div>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="source-url">
-            {form.type === 'webpage' ? '列表页地址（URL）' : '订阅地址（feed URL）'}
-          </Label>
-          <Input
-            id="source-url"
-            type="text"
-            inputMode="url"
-            value={form.url}
-            onChange={(e) => handleUrlChange(e.target.value)}
-            onBlur={handleUrlBlur}
-            placeholder={
-              form.type === 'webpage'
-                ? 'https://example.com/news'
-                : 'https://example.com/feed.xml'
-            }
-            aria-invalid={Boolean(urlError)}
-          />
-          {urlError && <span className="text-xs text-destructive">{urlError}</span>}
-        </div>
+        {form.type !== 'bilibili' && (
+          <div className="grid gap-1.5">
+            <Label htmlFor="source-url">
+              {form.type === 'webpage' ? '列表页地址（URL）' : '订阅地址（feed URL）'}
+            </Label>
+            <Input
+              id="source-url"
+              type="text"
+              inputMode="url"
+              value={form.url}
+              onChange={(e) => handleUrlChange(e.target.value)}
+              onBlur={handleUrlBlur}
+              placeholder={
+                form.type === 'webpage'
+                  ? 'https://example.com/news'
+                  : 'https://example.com/feed.xml'
+              }
+              aria-invalid={Boolean(urlError)}
+            />
+            {urlError && <span className="text-xs text-destructive">{urlError}</span>}
+          </div>
+        )}
 
         {form.type === 'webpage' && (
           <>
@@ -280,6 +343,108 @@ export default function SourceForm({
               />
               回源抓取正文（阶段 12 生效）
             </Label>
+          </>
+        )}
+
+        {form.type === 'bilibili' && (
+          <>
+            <div className="grid gap-1.5">
+              <Label htmlFor="source-bili-path">bilibili-cli 路径（可选）</Label>
+              <Input
+                id="source-bili-path"
+                type="text"
+                value={form.biliPath}
+                onChange={(e) => set({ biliPath: e.target.value })}
+                placeholder="留空自动探测，例如 ~/.local/bin/bili.exe"
+              />
+            </div>
+            <BiliEnvPanel biliPath={form.biliPath} />
+            <div className="grid gap-1.5">
+              <Label>采集模式</Label>
+              <Select
+                value={form.mode}
+                onValueChange={(v) => {
+                  if (v == null) return
+                  set({ mode: v, favId: '' })
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>{(v) => BILI_MODE_ITEMS[v] ?? v}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {BILI_MODES.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Label className="flex items-center gap-2">
+              <Checkbox
+                checked={form.fetchDetail}
+                onCheckedChange={(checked) => set({ fetchDetail: checked })}
+              />
+              回填视频详情（简介+封面，仅新条目，首次采集较慢）
+            </Label>
+            {form.mode === 'favorites' && (
+              <>
+                <div className="grid gap-1.5">
+                  <Label>收藏夹</Label>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={form.favId}
+                      onValueChange={(v) => {
+                        if (v == null) return
+                        const f = favFolders.find((x) => String(x.id) === v)
+                        set({ favId: v, name: form.name || f?.title || '' })
+                        setFavIdError('')
+                      }}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue>{(v) => folderLabel(v)}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {favFolders.map((f) => (
+                          <SelectItem key={String(f.id)} value={String(f.id)}>
+                            {f.title}（{f.media_count} 个视频）
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={loadFavFolders}
+                      disabled={loadingFolders}
+                    >
+                      {loadingFolders ? '获取中…' : '获取列表'}
+                    </Button>
+                  </div>
+                  {foldersError && (
+                    <span className="text-xs text-destructive">{foldersError}</span>
+                  )}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="source-favid">收藏夹 ID（或手动输入）</Label>
+                  <Input
+                    id="source-favid"
+                    type="text"
+                    inputMode="numeric"
+                    value={form.favId}
+                    onChange={(e) => {
+                      set({ favId: e.target.value })
+                      setFavIdError('')
+                    }}
+                    placeholder="例如 72800232"
+                    aria-invalid={Boolean(favIdError)}
+                  />
+                  {favIdError && (
+                    <span className="text-xs text-destructive">{favIdError}</span>
+                  )}
+                </div>
+              </>
+            )}
           </>
         )}
 

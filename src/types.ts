@@ -26,7 +26,15 @@ export interface Source {
   id: number
   name: string
   type: string
-  config?: { url?: string; selector?: string; full_text?: boolean }
+  config?: {
+    url?: string
+    selector?: string
+    full_text?: boolean
+    mode?: string
+    fav_id?: string
+    bili_path?: string
+    fetch_detail?: boolean
+  }
   interval: number
   enabled: boolean
   fail_count: number
@@ -44,7 +52,15 @@ export interface Source {
 export interface SourcePayload {
   name: string
   type: string
-  config: { url: string; selector?: string; full_text?: boolean }
+  config: {
+    url?: string
+    selector?: string
+    full_text?: boolean
+    mode?: string
+    fav_id?: string
+    bili_path?: string
+    fetch_detail?: boolean
+  }
   interval: number
   enabled: boolean
 }
@@ -55,4 +71,26 @@ export interface EntryListResponse {
   total: number
   page: number
   page_size: number
+}
+
+/** 渠道运行环境检测结果（GET /api/source/env-check）。 */
+export interface EnvUser {
+  id: string
+  name: string
+  avatar: string
+  level: number
+  sign: string
+  coins: number
+  following: number
+  follower: number
+}
+
+export interface EnvCheck {
+  ready: boolean
+  version: string
+  path: string
+  authed: boolean
+  user: EnvUser | null
+  missing: string[]
+  hints: string[]
 }

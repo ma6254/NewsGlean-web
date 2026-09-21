@@ -48,6 +48,7 @@ export default function EntryRow({ entry, sources, onChanged, highlighted, keywo
   }
 
   const name = sourceName(sources, entry.source_id)
+  const cover = entry.extra?.cover
 
   return (
     <li
@@ -59,32 +60,44 @@ export default function EntryRow({ entry, sources, onChanged, highlighted, keywo
       }
     >
       <div className="min-w-0 flex-1">
-        <Link
-          to={`/entries/${entry.id}`}
-          className={
-            (read
-              ? 'text-base font-medium text-muted-foreground'
-              : 'text-base font-semibold text-foreground') +
-            ' hover:text-primary'
-          }
-        >
-          <Highlight text={entry.title || '(无标题)'} keyword={keyword} />
-        </Link>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {highlighted && <Badge variant="secondary">新增</Badge>}
-          {name && <Badge variant="outline">{name}</Badge>}
-          {entry.author && (
-            <span>
-              <Highlight text={entry.author} keyword={keyword} />
-            </span>
+        <div className="flex gap-3">
+          {cover && (
+            <img
+              src={cover}
+              alt=""
+              loading="lazy"
+              className="h-16 w-28 shrink-0 rounded-md border border-border object-cover"
+            />
           )}
-          <time>{fmtTime(entry.published_at)}</time>
+          <div className="min-w-0 flex-1">
+            <Link
+              to={`/entries/${entry.id}`}
+              className={
+                (read
+                  ? 'text-base font-medium text-muted-foreground'
+                  : 'text-base font-semibold text-foreground') +
+                ' hover:text-primary'
+              }
+            >
+              <Highlight text={entry.title || '(无标题)'} keyword={keyword} />
+            </Link>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {highlighted && <Badge variant="secondary">新增</Badge>}
+              {name && <Badge variant="outline">{name}</Badge>}
+              {entry.author && (
+                <span>
+                  <Highlight text={entry.author} keyword={keyword} />
+                </span>
+              )}
+              <time>{fmtTime(entry.published_at)}</time>
+            </div>
+            {entry.summary && (
+              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                <Highlight text={stripHtml(entry.summary)} keyword={keyword} />
+              </p>
+            )}
+          </div>
         </div>
-        {entry.summary && (
-          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-            <Highlight text={stripHtml(entry.summary)} keyword={keyword} />
-          </p>
-        )}
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1">

@@ -26,6 +26,7 @@ export default function SourceList() {
   const [editing, setEditing] = useState<Source | null>(null)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [backfilling, setBackfilling] = useState<number | null>(null)
   const dirtyRef = useRef(false)
 
   async function load() {
@@ -103,6 +104,20 @@ export default function SourceList() {
       await load()
     } catch (e) {
       setError((e as Error).message)
+    }
+  }
+
+  async function handleBackfill(s: Source) {
+    setBackfilling(s.id)
+    setError('')
+    try {
+      const r = await api.backfillBilibili(s.id)
+      setNotice(`已回填 ${r.backfilled}/${r.total} 条简介`)
+      await load()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBackfilling(null)
     }
   }
 
@@ -250,6 +265,16 @@ export default function SourceList() {
                     >
                       {s.enabled ? '停用' : '启用'}
                     </Button>
+                    {s.type === 'bilibili' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBackfill(s)}
+                        disabled={backfilling === s.id}
+                      >
+                        {backfilling === s.id ? '回填中…' : '回填简介'}
+                      </Button>
+                    )}
                     <Button
                       variant="destructive"
                       size="sm"

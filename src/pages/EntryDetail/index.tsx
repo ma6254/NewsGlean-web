@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/badge'
 import { PicViewerDialog } from '../../components/PicViewer'
 import { PicViewerMobileDialog } from '../../components/PicViewerMobile'
 import { isMobileDevice } from '../../lib/device'
+import { sanitizeEntryHtml } from '../../lib/sanitize'
 import type { Entry } from '../../types'
 import './index.css'
 
@@ -34,6 +35,16 @@ export default function EntryDetail() {
   const contentRef = useRef<HTMLDivElement | null>(null)
   const [viewer, setViewer] = useState<ViewerState | null>(null)
   const isMobile = useMemo(() => isMobileDevice(), [])
+
+  // BUG-001：正文 HTML 渲染前经 DOMPurify 兜底净化（覆盖存量脏数据），
+  // 净化钩子同时给图片补 loading="lazy"（W-24）。仅在 HTML 正文时计算。
+  const sanitizedContent = useMemo(
+    () =>
+      entry?.content_type === 'text/html' && entry.content
+        ? sanitizeEntryHtml(entry.content)
+        : '',
+    [entry],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -215,7 +226,7 @@ export default function EntryDetail() {
               ref={contentRef}
               className="entry-content"
               onClick={handleContentClick}
-              dangerouslySetInnerHTML={{ __html: entry.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizedContent }}
             />
           ) : (
             <pre className="entry-content whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">
